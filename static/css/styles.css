@@ -1,0 +1,29 @@
+@import 'base/variables.css';
+@import 'base/reset.css';
+@import 'layout/container.css';
+@import 'layout/sidebar.css';
+@import 'components/buttons.css';
+@import 'components/chat.css';
+@import 'components/forms.css';
+@import 'components/loading.css';
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+    }
+    
+    .main-content {
+        margin-left: 0;
+    }
+    
+    .chat-container,
+    .input-container,
+    .welcome-screen {
+        padding: 1rem;
+    }
+    
+    .quick-actions {
+        grid-template-columns: 1fr;
+    }
+}
