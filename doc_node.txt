@@ -1,0 +1,183 @@
+# Documentação Técnica - Sistema Node.js
+
+## 1. Estrutura de Diretórios
+```
+📁 raiz-projeto/
+├── 📄 .env                    # Variáveis de ambiente
+├── 📄 package.json           # Configurações do projeto
+├── 📄 server.js              # Ponto de entrada principal
+├── 📁 src/
+│   ├── 📁 config/            # Configurações do sistema
+│   │   ├── 📄 database.js    # Configuração do banco de dados
+│   │   └── 📄 app.js        # Configuração do Express
+│   ├── 📁 controllers/       # Controladores da aplicação
+│   │   └── 📄 UserController.js
+│   ├── 📁 models/           # Modelos de dados
+│   │   └── 📄 User.js
+│   ├── 📁 middlewares/      # Middlewares personalizados
+│   │   ├── 📄 auth.js
+│   │   └── 📄 error.js
+│   ├── 📁 routes/           # Rotas da API
+│   │   └── 📄 userRoutes.js
+│   ├── 📁 services/         # Camada de serviços
+│   │   └── 📄 UserService.js
+│   └── 📁 utils/            # Utilitários
+│       └── 📄 logger.js
+├── 📁 tests/                # Testes automatizados
+└── 📄 Dockerfile            # Configuração Docker
+```
+
+## 2. Árvore de Dependências de Módulos
+```
+Aplicação (Express)
+├── Configuração
+│   ├── Database (MySQL2)
+│   └── Environment (.env)
+├── Middlewares
+│   ├── Authentication
+│   ├── Error Handler
+│   └── Request Logger
+├── Controllers
+│   └── UserController
+│       ├── UserService
+│       └── UserModel
+└── Routes
+    └── UserRoutes
+```
+
+## 3. Fluxo de Middlewares
+```
+Request → Logger → Auth → Controller → Response
+   ↓         ↓       ↓         ↓
+   └─────────┴───────┴─────────┘
+          Error Handler
+```
+
+## 4. Documentação Técnica Detalhada
+
+### Módulos Principais
+
+#### Database (src/config/database.js)
+- **Propósito**: Gerenciamento de conexões com MySQL
+- **Métodos**:
+  - `conectar()`: Promise<Pool>
+  - `obterConexao()`: Promise<Connection>
+- **Eventos**:
+  - 'conexao:obtida'
+  - 'conexao:erro'
+
+#### Autenticação (src/middlewares/auth.js)
+- **Fluxo**:
+  1. Extração do token do cabeçalho
+  2. Validação JWT
+  3. Anexar usuário ao request
+- **Códigos de Erro**:
+  - 401: Não autorizado
+  - 403: Proibido
+
+#### UserController (src/controllers/UserController.js)
+- **Endpoints**:
+  - GET /usuarios
+  - POST /usuarios
+  - PUT /usuarios/:id
+  - DELETE /usuarios/:id
+- **Validações**:
+  - Schema Validation
+  - Permissões de Acesso
+
+### Scripts NPM
+```json
+{
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "jest",
+    "migrate": "knex migrate:latest",
+    "lint": "eslint src/"
+  }
+}
+```
+
+### Variáveis de Ambiente (.env)
+```
+NODE_ENV=development
+PORT=3000
+DB_HOST=localhost
+DB_USER=root
+DB_PASS=senha
+DB_NAME=banco
+JWT_SECRET=chave_secreta
+```
+
+### Dependências Principais
+- express: ^4.18.0
+- mysql2: ^3.0.0
+- jsonwebtoken: ^9.0.0
+- dotenv: ^16.0.0
+- winston: ^3.8.0
+
+### Padrões de Projeto
+1. **Repository Pattern**
+   - Separação da lógica de acesso a dados
+   - Interfaces consistentes para operações CRUD
+
+2. **Service Layer**
+   - Encapsulamento da lógica de negócios
+   - Reutilização de código entre controllers
+
+3. **Middleware Chain**
+   - Processamento sequencial de requisições
+   - Separação clara de responsabilidades
+
+### Tratamento de Erros
+```javascript
+class ApiError extends Error {
+  constructor(statusCode, mensagem) {
+    super(mensagem);
+    this.statusCode = statusCode;
+  }
+}
+
+// Middleware de erro global
+app.use((err, req, res, next) => {
+  logger.error(err.stack);
+  res.status(err.statusCode || 500).json({
+    erro: err.message
+  });
+});
+```
+
+### Eventos Assíncronos
+- Utilização de Promises/Async-Await
+- Event Emitter para logs e monitoramento
+- Graceful shutdown para conexões
+
+### Segurança
+- Helmet para headers HTTP
+- Rate Limiting
+- Sanitização de entrada
+- Validação de dados
+- CORS configurável
+
+### Logging
+- Winston para logs estruturados
+- Níveis: error, warn, info, debug
+- Rotação de arquivos de log
+- Formato JSON para logs em produção
+
+### Testes
+- Jest para testes unitários
+- Supertest para testes de API
+- Mocks para dependências externas
+- Coverage reports
+
+### Docker
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install --production
+COPY . .
+EXPOSE 3000
+CMD ["npm", "start"]
+```
