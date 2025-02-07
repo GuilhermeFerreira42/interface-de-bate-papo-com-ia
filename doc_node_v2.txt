@@ -1,0 +1,260 @@
+
+# Documentação Sistema Node.js v2.0
+
+## 1. Visão Geral do Sistema
+
+### 1.1 Propósito
+Sistema backend Node.js desenvolvido para fornecer uma API RESTful escalável e segura, utilizando arquitetura hexagonal para garantir separação de responsabilidades e facilitar manutenção.
+
+### 1.2 Principais Funcionalidades
+- Autenticação JWT
+- CRUD de usuários
+- Sistema de logs centralizado
+- Cache distribuído
+- Filas assíncronas
+
+## 2. Arquitetura do Sistema
+
+### 2.1 Visão Arquitetural
+```
+[Interface de Usuário]
+        ↓
+[API Gateway (Express)]
+        ↓
+[Adaptadores de Entrada]
+        ↓
+[Casos de Uso / Serviços]
+        ↓
+[Entidades de Domínio]
+        ↓
+[Adaptadores de Saída]
+        ↓
+[Infraestrutura (DB/Cache/etc)]
+```
+
+### 2.2 Fluxo de Requisições
+```mermaid
+sequenceDiagram
+    Client->>+API Gateway: HTTP Request
+    API Gateway->>+Auth Middleware: Validar Token
+    Auth Middleware->>+Controller: Processar Request
+    Controller->>+Service: Executar Lógica
+    Service->>+Repository: Acessar Dados
+    Repository-->>-Service: Retornar Dados
+    Service-->>-Controller: Processar Resposta
+    Controller-->>-API Gateway: Formatar Response
+    API Gateway-->>-Client: HTTP Response
+```
+
+## 3. Estrutura de Arquivos e Funções
+
+### 3.1 Árvore de Diretórios Comentada
+```
+📁 src/
+├── 📁 application/           # Casos de uso da aplicação
+│   ├── 📄 UserService.ts    # Regras de negócio de usuário
+│   └── 📄 AuthService.ts    # Lógica de autenticação
+├── 📁 domain/               # Regras e entidades de domínio
+│   ├── 📄 User.ts          # Entidade de usuário
+│   └── 📄 Token.ts         # Value Object de token
+└── 📁 infrastructure/       # Implementações técnicas
+    ├── 📄 Database.ts      # Conexão com banco
+    └── 📄 Cache.ts         # Gerenciamento de cache
+```
+
+### 3.2 Exemplos de Implementação
+
+#### UserService.ts
+```typescript
+class UserService {
+  async createUser(userData: UserDTO): Promise<User> {
+    // Validação dos dados
+    await this.validator.validate(userData);
+    
+    // Criptografia da senha
+    const hashedPassword = await bcrypt.hash(userData.password, 10);
+    
+    // Persistência
+    const user = await this.userRepository.create({
+      ...userData,
+      password: hashedPassword
+    });
+    
+    // Notificação
+    await this.eventEmitter.emit('user:created', user);
+    
+    return user;
+  }
+}
+```
+
+## 4. Fluxos de Execução Detalhados
+
+### 4.1 Inicialização do Sistema
+```javascript
+// server.js
+async function bootstrap() {
+  // 1. Carrega variáveis de ambiente
+  dotenv.config();
+  
+  // 2. Inicializa conexões
+  await database.connect();
+  await cache.connect();
+  
+  // 3. Configura middlewares
+  app.use(express.json());
+  app.use(cors());
+  app.use(helmet());
+  
+  // 4. Registra rotas
+  app.use('/api/v1', routes);
+  
+  // 5. Inicia servidor
+  app.listen(PORT);
+}
+```
+
+### 4.2 Fluxo de Autenticação
+1. Cliente envia credenciais (POST /auth/login)
+2. AuthController valida entrada
+3. AuthService verifica credenciais
+4. JWT é gerado e retornado
+5. Cliente armazena token
+
+## 5. Componentes Principais
+
+### 5.1 Express Application
+```javascript
+const app = express();
+
+app.use(compression());
+app.use(morgan('combined'));
+app.use(bodyParser.json());
+
+// Rotas principais
+app.use('/api/users', userRoutes);
+app.use('/api/auth', authRoutes);
+```
+
+### 5.2 Database Pool
+```javascript
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASS,
+  database: process.env.DB_NAME,
+  connectionLimit: 10
+});
+```
+
+## 6. Regras de Negócio
+
+### 6.1 Validação de Usuários
+- Senha mínima de 8 caracteres
+- Email único no sistema
+- Perfil obrigatório
+- Bloqueio após 3 tentativas
+
+### 6.2 Políticas de Cache
+- TTL de 15 minutos para dados públicos
+- Invalidação em cascata
+- Chaves prefixadas por domínio
+
+## 7. Segurança
+
+### 7.1 Medidas Implementadas
+```javascript
+// Configuração de segurança
+app.use(helmet({
+  contentSecurityPolicy: true,
+  crossOriginEmbedderPolicy: true,
+  crossOriginOpenerPolicy: true,
+  crossOriginResourcePolicy: true,
+  dnsPrefetchControl: true,
+  frameguard: true,
+  hidePoweredBy: true,
+  hsts: true,
+  ieNoOpen: true,
+  noSniff: true,
+  referrerPolicy: true,
+  xssFilter: true
+}));
+```
+
+### 7.2 Autenticação
+- JWT com rotação de chaves
+- Refresh tokens
+- Rate limiting por IP
+
+## 8. Infraestrutura
+
+### 8.1 Containerização
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+EXPOSE 3000
+CMD ["npm", "start"]
+```
+
+### 8.2 CI/CD Pipeline
+```yaml
+# GitHub Actions
+name: Node.js CI/CD
+on:
+  push:
+    branches: [ main ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+```
+
+## 9. Sugestões de Melhorias
+
+### 9.1 Técnicas
+- Implementar GraphQL
+- Migrar para TypeScript
+- Adicionar testes E2E
+- Implementar tracing distribuído
+
+### 9.2 Performance
+- Otimizar queries N+1
+- Implementar compressão Brotli
+- Adicionar cache em memória
+- Usar connection pooling
+
+## 10. API Documentation
+
+### 10.1 Rotas Principais
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| POST | /api/auth/login | Autenticação |
+| GET | /api/users | Lista usuários |
+| POST | /api/users | Cria usuário |
+| GET | /api/users/:id | Busca usuário |
+
+### 10.2 Exemplos de Uso
+```bash
+# Login
+curl -X POST http://api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@email.com","password":"senha123"}'
+
+# Criar usuário
+curl -X POST http://api/users \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"John","email":"john@email.com"}'
+```
+
+[STATUS: DOCUMENTAÇÃO V2 CRIADA]
+[RISCO TÉCNICO: BAIXO]
+[PRÓXIMA AÇÃO: VALIDAÇÃO COM EQUIPE]
