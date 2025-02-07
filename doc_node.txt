@@ -1,3 +1,4 @@
+
 # Documentação Técnica - Sistema Node.js
 
 ## 1. Visão Arquitetural
